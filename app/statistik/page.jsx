@@ -9,39 +9,37 @@ import Pagination from "./komponen/Pagination"; // client component
 export const revalidate = 60; // ISR 60 detik
 
 export default async function StatistikPage({ searchParams }) {
-  const params = await searchParams; // ⬅️ wajib di-await sekarang
+  const params = await searchParams;
 
-  const page = Number(params?.page || 1);
+  const uiPage = Number(params?.page || 1);
   const opd = params?.opd || "";
   const urusan = params?.urusan || "";
   const q = (params?.q || "").toLowerCase();
   const sort = params?.sort || "az";
 
-  // Ambil list data (SSR + ISR)
+  // Konfigurasi pagination
+  const itemsPerPageUI = 10;   // per halaman UI
+  const itemsPerApiPage = 100; // per halaman API
+
+  // Hitung halaman API yang harus di-fetch
+  const apiPage = Math.floor((uiPage - 1) / (itemsPerApiPage / itemsPerPageUI)) + 1;
+
+  // Ambil data dari API sesuai halaman API
   const dataResp = await getList({
-    page: 1, // ambil semua data untuk pagination manual
+    page: apiPage,
     opd: opd || undefined,
     urusan: urusan || undefined,
     revalidate,
   });
 
   const datasets = dataResp?.datas?.data ?? [];
-  const totalFound =
-    dataResp?.datas?.total ??
-    dataResp?.datas?.data?.length ??
-    0;
+  const totalFound = dataResp?.datas?.total ?? 0;
 
   // Ambil kamus OPD & Urusan
-  const pInstansi =
-    dataResp?.pInstansi ??
-    (await getList({ page: 1 })).pInstansi ??
-    {};
-  const pUrusan =
-    dataResp?.pUrusan ??
-    (await getList({ page: 1 })).pUrusan ??
-    {};
+  const pInstansi = dataResp?.pInstansi ?? {};
+  const pUrusan = dataResp?.pUrusan ?? {};
 
-  // Filter berdasarkan q (server-side)
+  // Filter pencarian
   let filtered = datasets;
   if (q) {
     filtered = filtered.filter(
@@ -51,7 +49,7 @@ export default async function StatistikPage({ searchParams }) {
     );
   }
 
-  // Sort
+  // Sorting
   filtered = [...filtered].sort((a, b) => {
     const A = (a?.nama_elemen || "").toLowerCase();
     const B = (b?.nama_elemen || "").toLowerCase();
@@ -59,12 +57,13 @@ export default async function StatistikPage({ searchParams }) {
     return A.localeCompare(B);
   });
 
-  // Pagination manual
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const startIndex = (page - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  // Potong data untuk halaman UI sekarang
+  const startIndex = ((uiPage - 1) % (itemsPerApiPage / itemsPerPageUI)) * itemsPerPageUI;
+  const endIndex = startIndex + itemsPerPageUI;
   const paginatedData = filtered.slice(startIndex, endIndex);
+
+  // Hitung total halaman UI dari total data API
+  const totalPagesUI = Math.ceil(totalFound / itemsPerPageUI);
 
   return (
     <div className="min-h-screen pt-20 bg-gradient-to-br from-green-50 via-white to-green-100">
@@ -102,7 +101,7 @@ export default async function StatistikPage({ searchParams }) {
                 <DatasetCard
                   key={item.id}
                   item={item}
-                  currentPage={page}
+                  currentPage={uiPage}
                   opd={opd}
                   urusan={urusan}
                   q={q}
@@ -118,8 +117,8 @@ export default async function StatistikPage({ searchParams }) {
 
             <div className="pb-6">
               <Pagination
-                currentPage={page}
-                totalPages={totalPages}
+                currentPage={uiPage}
+                totalPages={totalPagesUI}
                 preserve={{ opd, urusan, q, sort }}
               />
             </div>
