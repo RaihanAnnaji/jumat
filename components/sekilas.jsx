@@ -5,8 +5,8 @@ import CountUp from "react-countup";
 export default function Sekilas({ datasetCount, opdCount, urusanCount }) {
   const stats = [
     { icon: FaChartBar, value: datasetCount, label: "Dataset" },
-    { icon: FaUsers, value: opdCount, label: "Produsen" },
-    { icon: FaFolderOpen, value: urusanCount, label: "Topik" }
+    { icon: FaUsers, value: opdCount, label: "OPD" },
+    { icon: FaFolderOpen, value: urusanCount, label: "Urusan" }
   ];
 
   return (
